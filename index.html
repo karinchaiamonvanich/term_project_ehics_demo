@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบคัดกรองใบสมัครทุนการศึกษา (Ethical AI & Explainability Demo)</title>
+  <meta name="description" content="ระบบช่วยกรรมการคัดกรองใบสมัครทุนการศึกษาตามหลักจริยธรรม AI และ Human-in-the-Loop">
+  <!-- Google Fonts: Prompt & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Sticky Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">🎓</div>
+        <div class="brand-text">
+          <h1>ระบบคัดกรองใบสมัครทุนการศึกษา</h1>
+          <p>Ethical AI Screening &amp; Human-in-the-Loop Platform</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs" aria-label="Main Navigation">
+        <button class="nav-tab active" data-tab="dashboard">
+          <span>📊</span> แดชบอร์ด
+        </button>
+        <button class="nav-tab" data-tab="applicants">
+          <span>👥</span> รายชื่อผู้สมัคร
+        </button>
+        <button class="nav-tab" data-tab="settings">
+          <span>⚙️</span> ปรับเกณฑ์ &amp; จำลอง
+        </button>
+        <button class="nav-tab" data-tab="import">
+          <span>📥</span> นำเข้า/ส่งออก CSV
+        </button>
+        <button class="nav-tab" data-tab="audit">
+          <span>📋</span> Audit Log
+        </button>
+        <button class="nav-tab" data-tab="ethics">
+          <span>⚖️</span> หลักจริยธรรม
+        </button>
+      </nav>
+
+      <!-- Quick Actions -->
+      <div class="header-actions">
+        <button class="btn btn-outline btn-sm" onclick="exportCurrentApplicantsCSV()" title="ส่งออกผลคะแนนเป็นไฟล์ CSV">
+          <span>📤</span> Export CSV
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="resetToDefault()" title="รีเซ็ตข้อมูลทั้งหมดกลับเป็น 20 รายชื่อเริ่มต้น">
+          <span>🔄</span> รีเซ็ตข้อมูล
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Ethical Governance Banner (Always Visible) -->
+    <div class="ethical-banner" role="alert">
+      <div class="banner-icon">⚠️</div>
+      <div class="banner-content">
+        <h4>หลักการจริยธรรมของระบบ (Human-in-the-Loop)</h4>
+        <p>
+          ผลจากระบบนี้เป็น<strong>การคัดกรองเบื้องต้นเท่านั้น</strong> ต้องผ่านการพิจารณาของคณะกรรมการก่อนตัดสิน —
+          ระบบถูกออกแบบให้กรรมการสามารถตรวจสอบเหตุผลแบบโปร่งใส (Explainability) และมีสิทธิ์แก้ไขผล (Override) ได้ในทุกขั้นตอน
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB 1: DASHBOARD -->
+    <section id="view-dashboard" class="tab-view">
+      <!-- Stat Cards -->
+      <div class="stat-grid">
+        <div class="stat-card stat-pass">
+          <div class="stat-label">
+            <span>ผ่านเกณฑ์เบื้องต้น</span>
+            <span>✅</span>
+          </div>
+          <div class="stat-value" id="stat-pass-count">0</div>
+          <div class="stat-desc">คะแนนรวม ≥ เกณฑ์ผ่าน</div>
+        </div>
+
+        <div class="stat-card stat-review">
+          <div class="stat-label">
+            <span>รอคณะกรรมการพิจารณา</span>
+            <span>⏳</span>
+          </div>
+          <div class="stat-value" id="stat-review-count">0</div>
+          <div class="stat-desc">คะแนนก้ำกึ่ง หรือมี Flag เอกสาร</div>
+        </div>
+
+        <div class="stat-card stat-fail">
+          <div class="stat-label">
+            <span>ไม่ผ่านเบื้องต้น</span>
+            <span>❌</span>
+          </div>
+          <div class="stat-value" id="stat-fail-count">0</div>
+          <div class="stat-desc">คะแนนต่ำกว่าเกณฑ์ขั้นต่ำ</div>
+        </div>
+
+        <div class="stat-card stat-pending">
+          <div class="stat-label">
+            <span>รอประเมินเรียงความ</span>
+            <span>📝</span>
+          </div>
+          <div class="stat-value" id="stat-pending-count">0</div>
+          <div class="stat-desc">อยู่ระหว่างตรวจโดย AI / กรรมการ</div>
+        </div>
+
+        <div class="stat-card stat-flag">
+          <div class="stat-label">
+            <span>มี Flag ตรวจสอบพิเศษ</span>
+            <span>🚩</span>
+          </div>
+          <div class="stat-value" id="stat-flag-count">0</div>
+          <div class="stat-desc">เช่น ขาดเอกสาร / สงสัย AI / ผิดเกณฑ์</div>
+        </div>
+      </div>
+
+      <!-- Score Distribution Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📈 การกระจายตัวของคะแนนรวม (Score Distribution 0–100)</h2>
+            <p class="card-subtitle">แสดงจำนวนผู้สมัครในแต่ละช่วงคะแนนเพื่อตรวจสอบความเป็นธรรมและความสมดุลของเกณฑ์</p>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div class="score-bars" id="score-chart-bars">
+            <!-- Dynamic Chart Bars will be rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Privacy & Ethics Quick Guide -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">🛡️ ความปลอดภัยข้อมูลและคุ้มครองข้อมูลส่วนบุคคล (PDPA)</h2>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6;">
+          • <strong>Data Minimization:</strong> ตารางภาพรวมจะไม่แสดงข้อมูลอ่อนไหว เช่น รายได้ครัวเรือน หรือภาพถ่ายเอกสารสำคัญต่อสาธารณะ<br>
+          • <strong>Access Control &amp; Audit Trail:</strong> กรรมการจะเห็นข้อมูลเชิงลึกได้เฉพาะเมื่อคลิกดู "รายละเอียดรายบุคคล" ซึ่งทุกการเข้าถึงและแก้ไขจะถูกบันทึกประวัติ (Audit Log) เสมอ<br>
+          • <strong>Algorithmic Safeguards:</strong> ระบบจะไม่ตัดสิทธิ์ (Auto-Fail) ผู้สมัครที่เอกสารชำรุดหรืออ่านไม่ออก แต่จะส่งเข้าโหมด "รอพิจารณา" เพื่อให้มนุษย์ติดต่อขอเอกสารเพิ่มเติม
+        </p>
+      </div>
+    </section>
+
+    <!-- TAB 2: APPLICANTS TABLE -->
+    <section id="view-applicants" class="tab-view hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">👥 รายชื่อผู้สมัครทุนการศึกษา</h2>
+            <p class="card-subtitle">รายชื่อผู้สมัครพร้อมคะแนนคัดกรองเบื้องต้นและการตัดสินใจของคณะกรรมการ</p>
+          </div>
+          <span class="badge badge-pass" id="applicants-count-badge">0 รายการ</span>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="filter-bar">
+          <input type="text" id="filter-search" class="form-control search-input" placeholder="🔍 ค้นหาด้วยรหัส หรือ ชื่อ-นามสกุล..." />
+          
+          <select id="filter-group" class="form-control">
+            <option value="">ทุกสถานะผลการคัดกรอง</option>
+            <option value="PASS">ผ่าน (PASS)</option>
+            <option value="REVIEW">รอพิจารณา (REVIEW)</option>
+            <option value="FAIL">ไม่ผ่านเบื้องต้น (FAIL)</option>
+            <option value="PENDING_ESSAY">รอประเมินเรียงความ</option>
+          </select>
+
+          <select id="filter-flag" class="form-control">
+            <option value="">ทั้งหมด (มี/ไม่มี Flag)</option>
+            <option value="flagged">เฉพาะที่มี Flag ผิดปกติ 🚩</option>
+          </select>
+
+          <select id="filter-sort" class="form-control">
+            <option value="code">เรียงตามรหัสผู้สมัคร (น้อย ➔ มาก)</option>
+            <option value="score_desc">เรียงตามคะแนนรวม (มาก ➔ น้อย)</option>
+            <option value="score_asc">เรียงตามคะแนนรวม (น้อย ➔ มาก)</option>
+            <option value="gpa_desc">เรียงตาม GPA (มาก ➔ น้อย)</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>รหัสผู้สมัคร</th>
+                <th>ชื่อ-นามสกุล</th>
+                <th>GPA</th>
+                <th>คะแนนรวม</th>
+                <th>สถานะระบบ</th>
+                <th>กรรมการยืนยัน</th>
+                <th>Flag ตรวจสอบ</th>
+                <th class="text-right">การกระทำ</th>
+              </tr>
+            </thead>
+            <tbody id="applicants-table-body">
+              <!-- Rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: POLICY SETTINGS & SIMULATION -->
+    <section id="view-settings" class="tab-view hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">⚙️ ปรับเกณฑ์การให้คะแนนและจำลองผลกระทบ (Policy &amp; Live Simulation)</h2>
+            <p class="card-subtitle">ทดลองปรับสัดส่วนน้ำหนัก 4 ด้าน และเกณฑ์คะแนน เพื่อดูผลกระทบต่อผู้สมัครก่อนบันทึกจริง</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Weight Sliders -->
+          <div>
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; font-weight: 700;">1. สัดส่วนน้ำหนักการประเมิน (รวม 100%)</h3>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>ผลการเรียน (GPA):</span>
+                <span id="val-gpa" class="font-bold">25%</span>
+              </div>
+              <input type="range" id="cfg-gpa" class="range-slider" min="0" max="60" value="25" />
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>ความจำเป็นทางการเงิน (รายได้ครัวเรือนต่อหัว):</span>
+                <span id="val-fin" class="font-bold">30%</span>
+              </div>
+              <input type="range" id="cfg-fin" class="range-slider" min="0" max="60" value="30" />
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>กิจกรรมจิตอาสาและผลงาน:</span>
+                <span id="val-act" class="font-bold">20%</span>
+              </div>
+              <input type="range" id="cfg-act" class="range-slider" min="0" max="60" value="20" />
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>เรียงความแสดงวิสัยทัศน์:</span>
+                <span id="val-essay" class="font-bold">25%</span>
+              </div>
+              <input type="range" id="cfg-essay" class="range-slider" min="0" max="60" value="25" />
+            </div>
+
+            <div id="weight-total-indicator" style="font-weight: 700; font-size: 0.875rem; margin-bottom: 1.5rem;">
+              น้ำหนักรวม: 100%
+            </div>
+
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; font-weight: 700;">2. เกณฑ์คะแนนตัดกลุ่ม (Thresholds)</h3>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+              <div style="flex: 1;">
+                <label style="font-size: 0.8125rem; font-weight: 600;">เกณฑ์ผ่าน (PASS) ≥</label>
+                <input type="number" id="cfg-pass" class="form-control" style="width: 100%; margin-top: 0.25rem;" value="70" />
+              </div>
+              <div style="flex: 1;">
+                <label style="font-size: 0.8125rem; font-weight: 600;">เกณฑ์รอพิจารณา (REVIEW) ≥</label>
+                <input type="number" id="cfg-review" class="form-control" style="width: 100%; margin-top: 0.25rem;" value="50" />
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="applyNewConfig()" style="width: 100%;">
+              💾 บันทึกเป็นเกณฑ์เวอร์ชันใหม่และคำนวณใหม่
+            </button>
+          </div>
+
+          <!-- Live Impact Preview Box -->
+          <div>
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; font-weight: 700;">3. ผลกระทบการจำลองแบบเรียลไทม์ (Live Impact Analysis)</h3>
+            <div class="impact-alert">
+              <div id="simulation-impact-results">
+                <!-- Rendered by runPolicySimulation() -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: IMPORT & EXPORT -->
+    <section id="view-import" class="tab-view hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📥 นำเข้าใบสมัครผ่านไฟล์ CSV (CSV Batch Import)</h2>
+            <p class="card-subtitle">นำเข้าข้อมูลผู้สมัครหลายรายพร้อมกัน ระบบจะตรวจสอบความถูกต้อง (Dry Run) และคำนวณคะแนนทันที</p>
+          </div>
+          <div>
+            <button class="btn btn-outline btn-sm" onclick="downloadCSVTemplate()">📄 ดาวน์โหลด Template CSV</button>
+            <button class="btn btn-primary btn-sm" onclick="loadSampleCSV()">⚡ ทดสอบโหลดไฟล์ตัวอย่าง (Sample CSV)</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem;">
+          <div style="flex: 1; min-width: 250px;">
+            <label style="font-size: 0.8125rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">ชื่อกรรมการผู้ดำเนินการนำเข้า (สำหรับ Audit Trail):</label>
+            <input type="text" id="import-actor-name" class="form-control" placeholder="เช่น อาจารย์กฤษณะ (ฝ่ายวิชาการ)" style="width: 100%;" />
+          </div>
+          <div style="flex: 1; min-width: 250px;">
+            <label style="font-size: 0.8125rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">เลือกไฟล์ CSV (.csv):</label>
+            <input type="file" id="import-file-input" class="form-control" accept=".csv,text/csv" style="width: 100%;" />
+          </div>
+        </div>
+
+        <!-- Preview Container -->
+        <div id="import-preview-box" style="border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem; background: #f8fafc;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: AUDIT LOG -->
+    <section id="view-audit" class="tab-view hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📋 ประวัติการตรวจสอบย้อนหลัง (Audit Log &amp; Transparency)</h2>
+            <p class="card-subtitle">บันทึกทุกการตัดสินใจ การแก้ไขผลคะแนน (Human Override) และการปรับปรุงนโยบายของระบบเพื่อความโปร่งใส</p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>รหัสบันทึก</th>
+                <th>วัน-เวลา</th>
+                <th>ผู้ดำเนินการ</th>
+                <th>ประเภทการกระทำ</th>
+                <th>รหัสผู้สมัคร</th>
+                <th>รายละเอียดและเหตุผล (Justification)</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body">
+              <!-- Rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: ETHICS SHOWCASE -->
+    <section id="view-ethics" class="tab-view hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">⚖️ กรอบจริยธรรมและธรรมาภิบาล AI (Ethical AI Framework)</h2>
+            <p class="card-subtitle">หลักการ 4 ประการที่นำมาออกแบบระบบคัดกรองทุนเพื่อความเป็นธรรมและความน่าเชื่อถือ</p>
+          </div>
+        </div>
+
+        <div class="ethics-grid">
+          <!-- Pillar 1 -->
+          <div class="ethics-card">
+            <div class="ethics-card-icon" style="background: #eff6ff; color: #2563eb;">👤</div>
+            <h3 class="ethics-title">1. มนุษย์เป็นผู้ตัดสินใจหลัก (Human-in-the-Loop)</h3>
+            <p class="ethics-desc">
+              ระบบอัลกอริทึมทำหน้าที่เพียง "คัดกรองเบื้องต้นและจัดระเบียบข้อมูล" เท่านั้น คณะกรรมการมีอำนาจเต็มในการปรับเปลี่ยนผล (Override) ทุกกรณี โดยระบบกำหนดให้ต้องบันทึกเหตุผลกำกับเสมอ
+            </p>
+          </div>
+
+          <!-- Pillar 2 -->
+          <div class="ethics-card">
+            <div class="ethics-card-icon" style="background: #f0fdf4; color: #16a34a;">🛡️</div>
+            <h3 class="ethics-title">2. กลไกยับยั้งความผิดพลาด (Algorithmic Safeguards)</h3>
+            <p class="ethics-desc">
+              หากผู้สมัครมีเอกสารขาดหรืออ่านไม่ออก ระบบจะ<strong>ห้ามตัดสิทธิ์ (Auto-Fail) ทันที</strong> แต่จะบังคับเปลี่ยนสถานะเป็น "รอพิจารณา (REVIEW)" เพื่อให้เจ้าหน้าที่ติดต่อขอเอกสารเพิ่มเติม ป้องกันการเสียโอกาสโดยไม่เป็นธรรม
+            </p>
+          </div>
+
+          <!-- Pillar 3 -->
+          <div class="ethics-card">
+            <div class="ethics-card-icon" style="background: #fffbeb; color: #d97706;">🔍</div>
+            <h3 class="ethics-title">3. ความโปร่งใสและอธิบายได้ (Explainability)</h3>
+            <p class="ethics-desc">
+              คะแนนทุกคะแนนมีที่มาอย่างชัดเจน (Deterministic Breakdown) ทั้ง 4 หมวด พร้อมรายการเหตุผลเป็นข้อๆ (Reasons) ทำให้ผู้สมัครและกรรมการสามารถตรวจสอบได้ว่าได้หรือเสียคะแนนจากจุดใด
+            </p>
+          </div>
+
+          <!-- Pillar 4 -->
+          <div class="ethics-card">
+            <div class="ethics-card-icon" style="background: #fdf2f8; color: #db2777;">🔒</div>
+            <h3 class="ethics-title">4. การคุ้มครองความเป็นส่วนตัว (PDPA by Design)</h3>
+            <p class="ethics-desc">
+              แยกชั้นการเข้าถึงข้อมูลอ่อนไหว (เช่น รายได้จริง สภาพครอบครัว) ไม่ให้ปรากฏบนตารางรวม และทุกการเรียกดูข้อมูลละเอียดจะถูกบันทึกประวัติ (Audit Trail) เพื่อป้องกันการรั่วไหล
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- APPLICANT DETAIL & OVERRIDE MODAL -->
+  <div id="applicant-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📄 รายละเอียดผู้สมัคร:</span>
+          <span id="modal-applicant-code" style="color: var(--primary);">APP-001</span>
+        </div>
+        <button id="modal-close-button" class="modal-close-btn" title="ปิดหน้าต่าง">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-grid">
+          <!-- Sensitive Information Box -->
+          <div class="modal-box">
+            <div class="modal-box-title">
+              <span>ข้อมูลส่วนบุคคลและหลักฐาน</span>
+              <span class="sensitive-tag">🔒 ข้อมูลคุ้มครอง PDPA</span>
+            </div>
+            
+            <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+              <strong>GPA สะสม:</strong> <span id="modal-gpa">0.00</span>
+            </div>
+            <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+              <strong>รายได้ครัวเรือน:</strong> <span id="modal-income">0 บาท/เดือน</span>
+            </div>
+            <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+              <strong>สมาชิกในครอบครัว:</strong> <span id="modal-members">0 คน</span>
+            </div>
+            
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; margin-bottom: 0.25rem;">
+              <strong>ข้อความเรียงความ (Essay Snippet):</strong>
+            </div>
+            <div id="modal-essay-snippet" style="font-size: 0.8125rem; color: var(--text-muted); background: #ffffff; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border-color); max-height: 80px; overflow-y: auto;">
+              -
+            </div>
+
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; font-weight: 600;">กิจกรรมและผลงาน:</div>
+            <ul id="modal-activities-list" style="font-size: 0.8125rem; padding-left: 1.25rem; margin-top: 0.25rem;">
+              <!-- Dynamic -->
+            </ul>
+
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; font-weight: 600;">เอกสารแนบ:</div>
+            <ul id="modal-documents-list" style="font-size: 0.8125rem; padding-left: 1.25rem; margin-top: 0.25rem;">
+              <!-- Dynamic -->
+            </ul>
+          </div>
+
+          <!-- System Score Breakdown Box -->
+          <div class="modal-box">
+            <div class="modal-box-title">
+              <span>คะแนนคัดกรองและความโปร่งใส</span>
+              <span class="badge badge-pass" style="font-size: 0.6875rem;">Explainable AI</span>
+            </div>
+
+            <div class="score-breakdown-item">
+              <span>1. ผลการเรียน (GPA):</span>
+              <span id="modal-score-gpa" class="font-bold">0 / 25</span>
+            </div>
+            <div class="score-breakdown-item">
+              <span>2. ความจำเป็นทางการเงิน:</span>
+              <span id="modal-score-finance" class="font-bold">0 / 30</span>
+            </div>
+            <div class="score-breakdown-item">
+              <span>3. กิจกรรมและผลงาน:</span>
+              <span id="modal-score-activity" class="font-bold">0 / 20</span>
+            </div>
+            <div class="score-breakdown-item">
+              <span>4. เรียงความ (AI ประเมิน):</span>
+              <span id="modal-score-essay" class="font-bold">0 / 25</span>
+            </div>
+            <div class="score-breakdown-item" style="border-bottom: 2px solid var(--primary); padding-top: 0.5rem;">
+              <span class="font-bold">คะแนนรวมสุทธิ:</span>
+              <span id="modal-score-total" class="font-bold" style="font-size: 1.1rem; color: var(--primary);">0 / 100</span>
+            </div>
+
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; font-weight: 600;">เหตุผลที่ระบบให้คะแนน (Transparency Trail):</div>
+            <ul id="modal-reasons-list" style="font-size: 0.75rem; color: var(--text-muted); padding-left: 1.25rem; margin-top: 0.25rem; max-height: 100px; overflow-y: auto;">
+              <!-- Dynamic -->
+            </ul>
+
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; font-weight: 600;">Flag ตรวจสอบความผิดปกติ:</div>
+            <div id="modal-flags-container" style="margin-top: 0.25rem;">
+              <!-- Dynamic -->
+            </div>
+
+            <div style="font-size: 0.875rem; margin-top: 0.75rem; font-weight: 600;">ผลวิเคราะห์เชิงลึกของเรียงความ (AI Analysis):</div>
+            <pre id="modal-essay-analysis" style="font-size: 0.6875rem; background: #ffffff; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border-color); max-height: 70px; overflow-y: auto; white-space: pre-wrap; margin-top: 0.25rem;"></pre>
+          </div>
+        </div>
+
+        <!-- Human Override Form (Ethical Decision Making) -->
+        <form id="override-form" class="override-form">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>⚖️ บันทึกการพิจารณาและการตัดสินใจของคณะกรรมการ (Human Override)</h3>
+            <span id="override-history-badge"></span>
+          </div>
+          <p>
+            ตามหลักจริยธรรม กรรมการมีอำนาจปรับเปลี่ยนผลที่ระบบเสนอได้ทุกกรณี แต่จำเป็นต้องระบุชื่อผู้มีอำนาจและเหตุผลในการเปลี่ยนแปลงเพื่อใช้ในการตรวจสอบ (Accountability)
+          </p>
+
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 160px;">
+              <label style="font-size: 0.75rem; font-weight: 700;">สถานะที่ต้องการยืนยัน:</label>
+              <select id="override-status-select" class="form-control" style="width: 100%; margin-top: 0.25rem;">
+                <option value="PASS">ผ่าน (PASS)</option>
+                <option value="REVIEW">รอพิจารณา (REVIEW)</option>
+                <option value="FAIL">ไม่ผ่านเบื้องต้น (FAIL)</option>
+              </select>
+            </div>
+
+            <div style="flex: 1.5; min-width: 200px;">
+              <label style="font-size: 0.75rem; font-weight: 700;">ชื่อกรรมการผู้ลงนาม:</label>
+              <input type="text" id="override-actor-name" class="form-control" placeholder="เช่น รศ.ดร. นภาพร" style="width: 100%; margin-top: 0.25rem;" required />
+            </div>
+
+            <div style="flex: 3; min-width: 260px;">
+              <label style="font-size: 0.75rem; font-weight: 700;">เหตุผลประกอบการตัดสินใจ (บังคับตามหลักจริยธรรม):</label>
+              <input type="text" id="override-reason-input" class="form-control" placeholder="เช่น ได้ตรวจสอบเอกสารตัวจริงแล้ว มีความจำเป็นเร่งด่วน..." style="width: 100%; margin-top: 0.25rem;" required />
+            </div>
+
+            <div style="align-self: flex-end;">
+              <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.25rem;">
+                บันทึกการตัดสินใจ
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer container">
+    <p>ระบบคัดกรองใบสมัครทุนการศึกษา — โครงการศึกษาด้านจริยธรรมและความโปร่งใสในระบบปัญญาประดิษฐ์ (Term Project Ethics)</p>
+    <p style="margin-top: 0.25rem; font-size: 0.75rem;">พร้อมเผยแพร่บน GitHub Pages โดยไม่ต้องพึ่งพาเซิร์ฟเวอร์ภายนอก (Pure HTML, CSS, JavaScript)</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
